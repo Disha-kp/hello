@@ -1,0 +1,111 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+
+  html,
+  body {
+    @apply h-full overflow-hidden antialiased;
+    font-family: 'Inter', system-ui, -apple-system, sans-serif;
+  }
+
+  #root {
+    @apply h-full w-full bg-gray-50 text-gray-900;
+  }
+}
+
+@layer components {
+
+  /* Glassmorphism Utilities */
+  .glass {
+    @apply bg-white/70 backdrop-blur-xl border border-white/40 shadow-lg;
+  }
+
+  .glass-card {
+    @apply bg-white/60 backdrop-blur-md border border-white/30 shadow-sm rounded-2xl;
+  }
+
+  .glass-button {
+    @apply bg-white/20 backdrop-blur-md border border-white/30 shadow transition-all active:scale-[0.98];
+  }
+
+  /* Animated Mesh Gradient Background */
+  .radiant-background {
+    background-color: #f3f4f6;
+    background-image:
+      radial-gradient(at 0% 0%, hsla(190, 80%, 70%, 0.4) 0px, transparent 50%),
+      radial-gradient(at 100% 0%, hsla(280, 70%, 75%, 0.4) 0px, transparent 50%),
+      radial-gradient(at 100% 100%, hsla(160, 70%, 70%, 0.4) 0px, transparent 50%),
+      radial-gradient(at 0% 100%, hsla(220, 80%, 75%, 0.4) 0px, transparent 50%);
+    background-size: 150% 150%;
+    animation: gradient-move 15s ease infinite alternate;
+  }
+}
+
+@keyframes gradient-move {
+  0% {
+    background-position: 0% 0%;
+  }
+
+  100% {
+    background-position: 100% 100%;
+  }
+}
+
+/* Scrollbar Hide */
+.scrollbar-hide::-webkit-scrollbar {
+  display: none;
+}
+
+.scrollbar-hide {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+/* High Contrast Mode Global Overrides */
+.high-contrast-mode body,
+.high-contrast-mode #root,
+.high-contrast-mode main,
+.high-contrast-mode .radiant-background {
+  background: black !important;
+  color: #facc15 !important;
+}
+
+.high-contrast-mode * {
+  font-weight: 800 !important;
+}
+
+.high-contrast-mode h1,
+.high-contrast-mode h2,
+.high-contrast-mode h3 {
+  font-size: 150% !important;
+}
+
+.high-contrast-mode p,
+.high-contrast-mode span,
+.high-contrast-mode label,
+.high-contrast-mode input,
+.high-contrast-mode button {
+  font-size: 120% !important;
+}
+
+.high-contrast-mode .text-gray-400,
+.high-contrast-mode .text-gray-500,
+.high-contrast-mode .text-gray-600 {
+  color: white !important;
+}
+
+.high-contrast-mode .bg-white,
+.high-contrast-mode .glass,
+.high-contrast-mode .glass-card,
+.high-contrast-mode .glass-button {
+  background: black !important;
+  border-color: #facc15 !important;
+  box-shadow: none !important;
+}
+
+.high-contrast-mode svg {
+  color: #facc15 !important;
+  stroke: #facc15 !important;
+}
