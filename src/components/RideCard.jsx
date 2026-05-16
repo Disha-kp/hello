@@ -1,6 +1,6 @@
-import { Clock, Star, Users } from 'lucide-react';
+import { Clock, Star, Users, CheckCircle } from 'lucide-react';
 
-export default function RideCard({ id, driver, rating, time, price, seats, start, end, onBook }) {
+export default function RideCard({ id, driver, rating, time, price, seats, start, end, onBook, isBooked }) {
     return (
         <div className="bg-white rounded-xl p-4 shadow-sm border border-gray-100 active:scale-95 transition-transform">
             <div className="flex justify-between items-start mb-3">
@@ -12,7 +12,14 @@ export default function RideCard({ id, driver, rating, time, price, seats, start
                         <span>{end}</span>
                     </div>
                 </div>
-                <div className="font-bold text-lg text-[#008080]">₹{price}</div>
+                <div className="flex flex-col items-end space-y-1">
+                    <div className="font-bold text-lg text-[#008080]">₹{price}</div>
+                    {isBooked && (
+                        <span className="text-[10px] font-bold text-teal-700 bg-teal-50 border border-teal-100 px-2 py-0.5 rounded-full flex items-center gap-1">
+                            <CheckCircle className="w-2.5 h-2.5" /> Booked
+                        </span>
+                    )}
+                </div>
             </div>
 
             <div className="flex items-center justify-between border-t border-gray-50 pt-3 mt-2">
@@ -34,7 +41,11 @@ export default function RideCard({ id, driver, rating, time, price, seats, start
                         <Users className="w-3 h-3 mr-1" />
                         {seats} left
                     </div>
-                    {seats > 0 ? (
+                    {isBooked ? (
+                        <span className="text-teal-600 text-xs font-bold px-3 py-1.5 bg-teal-50 rounded-lg flex items-center gap-1 border border-teal-100">
+                            <CheckCircle className="w-3 h-3" /> Booked
+                        </span>
+                    ) : seats > 0 ? (
                         <button
                             onClick={(e) => {
                                 e.stopPropagation();
