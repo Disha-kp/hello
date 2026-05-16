@@ -14,7 +14,7 @@ async function geocode(place) {
     return null;
 }
 
-// ─── OSRM route (bidirectional Dijkstra) ───────────────────────────────────
+// ─── OSRM route ─────────────────────────────────────────────────────────────
 async function fetchOSRMRoute(srcLat, srcLon, dstLat, dstLon) {
     try {
         const url =
@@ -36,7 +36,7 @@ async function fetchOSRMRoute(srcLat, srcLon, dstLat, dstLon) {
     return null;
 }
 
-// ─── Icon helpers ───────────────────────────────────────────────────────────
+// ─── Icon helpers ────────────────────────────────────────────────────────────
 function makeCircleIcon(L, color, label = '') {
     return L.divIcon({
         className: '',
@@ -55,14 +55,15 @@ function makeDriverIcon(L) {
     });
 }
 
-// ─── Component ──────────────────────────────────────────────────────────────
+// ─── Component ───────────────────────────────────────────────────────────────
 export default function RouteMapModal({
     isOpen,
     onClose,
     origin,
     destination,
-    driverLocation = null,      // { lat, lon } — updates live
-    passengerPickups = [],       // [{ lat, lon, name }] — updates live
+    driverLocation = null,
+    passengerPickups = [],
+    footer = null,          // ← NEW: renders inside the card after the legend row
 }) {
     const mapRef = useRef(null);
     const mapInstanceRef = useRef(null);
@@ -71,7 +72,7 @@ export default function RouteMapModal({
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState('');
 
-    // ── Build map once when opened ─────────────────────────────────────────
+    // ── Build map once when opened ──────────────────────────────────────────
     useEffect(() => {
         if (!isOpen) return;
 
@@ -109,7 +110,6 @@ export default function RouteMapModal({
                 if (!alive) return;
                 if (routeData) setRouteInfo({ distance: routeData.distanceKm, eta: routeData.durationMin });
 
-                // Wait a tick for the DOM ref to be visible
                 await new Promise(r => setTimeout(r, 80));
                 if (!mapRef.current || !alive) return;
 
@@ -123,13 +123,11 @@ export default function RouteMapModal({
                 mapInstanceRef.current = map;
                 L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19 }).addTo(map);
 
-                // Pickup + dropoff markers
                 markersRef.current.origin = L.marker([srcCoords.lat, srcCoords.lon], { icon: makeCircleIcon(L, '#008080') })
                     .addTo(map).bindPopup(`<b>📍 Pickup</b><br>${origin}`);
                 markersRef.current.dest = L.marker([dstCoords.lat, dstCoords.lon], { icon: makeCircleIcon(L, '#ef4444') })
                     .addTo(map).bindPopup(`<b>🏁 Dropoff</b><br>${destination}`);
 
-                // Route line
                 if (routeData) {
                     const poly = L.polyline(routeData.coords, { color: '#008080', weight: 5, opacity: 0.85 }).addTo(map);
                     map.fitBounds(poly.getBounds(), { padding: [40, 40] });
@@ -138,13 +136,11 @@ export default function RouteMapModal({
                     map.fitBounds(fallback.getBounds(), { padding: [40, 40] });
                 }
 
-                // Initial driver pin (if already known)
                 if (driverLocation?.lat && driverLocation?.lon) {
                     markersRef.current.driver = L.marker([driverLocation.lat, driverLocation.lon], { icon: makeDriverIcon(L) })
                         .addTo(map).bindPopup('<b>🚗 Driver</b>');
                 }
 
-                // Initial passenger pins
                 passengerPickups.forEach((p, i) => {
                     if (p.lat && p.lon) {
                         markersRef.current[`p_${i}`] = L.marker([p.lat, p.lon], { icon: makeCircleIcon(L, '#3b82f6', i + 1) })
@@ -162,7 +158,7 @@ export default function RouteMapModal({
         return () => { alive = false; };
     }, [isOpen, origin, destination]);
 
-    // ── Live driver pin update (no re-init) ────────────────────────────────
+    // ── Live driver pin update ──────────────────────────────────────────────
     useEffect(() => {
         if (!isOpen || !mapInstanceRef.current || !driverLocation?.lat) return;
         (async () => {
@@ -177,7 +173,7 @@ export default function RouteMapModal({
         })();
     }, [driverLocation, isOpen]);
 
-    // ── Live passenger pins update ─────────────────────────────────────────
+    // ── Live passenger pins ─────────────────────────────────────────────────
     useEffect(() => {
         if (!isOpen || !mapInstanceRef.current || passengerPickups.length === 0) return;
         (async () => {
@@ -196,7 +192,7 @@ export default function RouteMapModal({
         })();
     }, [passengerPickups, isOpen]);
 
-    // ── Destroy map on close ───────────────────────────────────────────────
+    // ── Destroy map on close ────────────────────────────────────────────────
     useEffect(() => {
         if (!isOpen && mapInstanceRef.current) {
             mapInstanceRef.current.remove();
@@ -211,6 +207,7 @@ export default function RouteMapModal({
         <div className="fixed inset-0 z-[9999] flex items-end sm:items-center justify-center bg-black/60 backdrop-blur-sm p-4">
             <div className="bg-white rounded-3xl w-full max-w-md shadow-2xl overflow-hidden animate-in fade-in slide-in-from-bottom-4 duration-300">
 
+                {/* Header */}
                 <div className="bg-[#008080] px-5 py-4 flex items-center justify-between">
                     <div className="flex items-center space-x-2">
                         <Route className="w-5 h-5 text-white" />
@@ -221,6 +218,7 @@ export default function RouteMapModal({
                     </button>
                 </div>
 
+                {/* Route pill */}
                 <div className="px-5 py-3 bg-teal-50 border-b border-teal-100 flex items-center space-x-2 flex-wrap gap-y-1">
                     <div className="flex items-center space-x-1.5 text-sm font-medium text-teal-800">
                         <span className="w-3 h-3 bg-[#008080] rounded-full border-2 border-white shadow-sm flex-shrink-0" />
@@ -233,11 +231,12 @@ export default function RouteMapModal({
                     </div>
                 </div>
 
-                <div className="relative h-64 bg-gray-100">
+                {/* Map */}
+                <div className="relative h-56 bg-gray-100">
                     {loading && (
                         <div className="absolute inset-0 flex flex-col items-center justify-center z-10 bg-gray-50">
                             <div className="w-8 h-8 border-4 border-teal-500 border-t-transparent rounded-full animate-spin mb-2" />
-                            <p className="text-gray-400 text-sm">Calculating route via OSRM...</p>
+                            <p className="text-gray-400 text-sm">Calculating route...</p>
                         </div>
                     )}
                     {error && (
@@ -248,6 +247,7 @@ export default function RouteMapModal({
                     <div ref={mapRef} className="w-full h-full" style={{ visibility: loading || error ? 'hidden' : 'visible' }} />
                 </div>
 
+                {/* Distance / ETA */}
                 {routeInfo && (
                     <div className="grid grid-cols-2 divide-x divide-gray-100 border-t border-gray-100">
                         <div className="p-4 flex items-center space-x-3">
@@ -267,12 +267,20 @@ export default function RouteMapModal({
                     </div>
                 )}
 
-                <div className="px-5 pb-4 pt-1 flex flex-wrap gap-3 text-xs text-gray-500">
+                {/* Legend */}
+                <div className="px-5 pb-3 pt-1 flex flex-wrap gap-3 text-xs text-gray-500 border-t border-gray-50">
                     <span className="flex items-center gap-1"><span className="w-2.5 h-2.5 rounded-full bg-[#008080] inline-block" />Pickup</span>
                     <span className="flex items-center gap-1"><span className="w-2.5 h-2.5 rounded-full bg-red-500 inline-block" />Dropoff</span>
                     {driverLocation && <span className="flex items-center gap-1"><span className="w-3 h-3 rounded-full bg-[#008080] border-2 border-white shadow inline-block" />Driver (live)</span>}
                     {passengerPickups.length > 0 && <span className="flex items-center gap-1"><span className="w-2.5 h-2.5 rounded-full bg-blue-500 inline-block" />Riders</span>}
                 </div>
+
+                {/* ── Footer slot: Confirm & Book button (or any custom content) ── */}
+                {footer && (
+                    <div className="border-t border-gray-100">
+                        {footer}
+                    </div>
+                )}
             </div>
         </div>
     );
