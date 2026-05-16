@@ -8,6 +8,35 @@ import Map from '../components/Map';
 import SmartSpotGuide from '../components/SmartSpotGuide';
 import RouteMapModal from '../components/RouteMapModal';
 import { useRideTracking } from '../hooks/useRideTracking';
+import { CheckCircle, XCircle, AlertCircle } from 'lucide-react';
+
+// ── Inline Toast Component ────────────────────────────────────────────────────
+function BookingToast({ toast }) {
+    if (!toast.show) return null;
+    const isSuccess = toast.type === 'success';
+    const isError = toast.type === 'error';
+
+    return (
+        <div
+            className={`fixed top-6 left-1/2 -translate-x-1/2 z-[99999] flex items-center space-x-3 px-5 py-4 rounded-2xl shadow-2xl border animate-in fade-in slide-in-from-top-4 duration-300 max-w-[90vw]
+                ${isSuccess ? 'bg-white border-green-200 text-green-800' : ''}
+                ${isError ? 'bg-white border-red-200 text-red-700' : ''}
+                ${!isSuccess && !isError ? 'bg-white border-gray-200 text-gray-800' : ''}`}
+        >
+            {isSuccess && <CheckCircle className="w-5 h-5 text-green-500 flex-shrink-0" />}
+            {isError && <XCircle className="w-5 h-5 text-red-500 flex-shrink-0" />}
+            {!isSuccess && !isError && <AlertCircle className="w-5 h-5 text-yellow-500 flex-shrink-0" />}
+            <span className="font-semibold text-sm">{toast.message}</span>
+
+            {/* Progress bar */}
+            {isSuccess && (
+                <div className="absolute bottom-0 left-0 h-1 bg-green-400 rounded-b-2xl animate-[shrink_3.5s_linear_forwards]"
+                    style={{ animation: 'toast-shrink 3.5s linear forwards' }}
+                />
+            )}
+        </div>
+    );
+}
 
 export default function FindRide() {
     const { currentUser } = useAuth();
@@ -20,8 +49,16 @@ export default function FindRide() {
     const [previewRide, setPreviewRide] = useState(null);
     const [booking, setBooking] = useState(false);
 
+    // Toast notification state
+    const [toast, setToast] = useState({ show: false, message: '', type: 'success' });
+
     // Tracking hook — rideId null until user picks a ride to preview
     const { savePassengerLocation } = useRideTracking(null, currentUser, false);
+
+    const showToast = (message, type = 'success') => {
+        setToast({ show: true, message, type });
+        setTimeout(() => setToast({ show: false, message: '', type: 'success' }), 3500);
+    };
 
     useEffect(() => {
         const q = query(collection(db, 'rides'), orderBy('createdAt', 'desc'));
@@ -33,16 +70,53 @@ export default function FindRide() {
     }, []);
 
     const filteredRides = rides.filter(ride => {
+        if (ride.status === 'completed' || ride.status === 'cancelled') return false;
         const q = searchQuery.toLowerCase();
         return ride.origin?.toLowerCase().includes(q) || ride.destination?.toLowerCase().includes(q);
     });
 
-    // Step 1: open map preview
-    const handleOpenPreview = (ride) => setPreviewRide(ride);
+    // Step 1: Validate then open map preview
+    const handleOpenPreview = (ride) => {
+        if (!currentUser) {
+            showToast('Please log in to book a ride.', 'error');
+            return;
+        }
+        if (ride.passengers?.includes(currentUser.uid)) {
+            showToast('You have already booked this ride.', 'warning');
+            return;
+        }
+        if (!ride.seats || ride.seats <= 0) {
+            showToast('Sorry, this ride is fully booked.', 'error');
+            return;
+        }
+        setPreviewRide(ride);
+    };
 
-    // Step 2: user confirms → book + save GPS
+    // Step 2: User confirms → book + save GPS
     const handleConfirmBook = async () => {
         if (!currentUser || !previewRide) return;
+
+        // Re-validate against the latest ride data (race condition guard)
+        const latestRide = rides.find(r => r.id === previewRide.id);
+
+        if (!latestRide) {
+            showToast('Ride no longer available.', 'error');
+            setPreviewRide(null);
+            return;
+        }
+
+        if (latestRide.passengers?.includes(currentUser.uid)) {
+            showToast('You have already booked this ride.', 'warning');
+            setPreviewRide(null);
+            return;
+        }
+
+        if (!latestRide.seats || latestRide.seats <= 0) {
+            showToast('Sorry, no seats left on this ride.', 'error');
+            setPreviewRide(null);
+            return;
+        }
+
         setBooking(true);
         try {
             const rideRef = doc(db, 'rides', previewRide.id);
@@ -50,17 +124,20 @@ export default function FindRide() {
                 seats: increment(-1),
                 passengers: arrayUnion(currentUser.uid),
             });
+
             // Save this passenger's GPS location to Firestore
             await savePassengerLocation(
                 previewRide.id,
                 currentUser.uid,
                 currentUser.displayName || 'Rider'
             );
+
             setPreviewRide(null);
-            alert('Ride Booked! Head to the meeting point.');
+            showToast('Your ride has been successfully booked.', 'success');
+
         } catch (err) {
             console.error('Booking error:', err);
-            alert('Error booking ride: ' + err.message);
+            showToast('Error booking ride. Please try again.', 'error');
         } finally {
             setBooking(false);
         }
@@ -100,6 +177,9 @@ export default function FindRide() {
         <div className="h-[calc(100vh-64px)] flex flex-col pb-[80px] relative">
             <div className="absolute inset-0 pointer-events-none radiant-background opacity-20 z-0" />
 
+            {/* ── Toast Notification ─────────────────────────────────── */}
+            <BookingToast toast={toast} />
+
             {/* ── Book Ride Map Popup ──────────────────────────────────── */}
             {previewRide && (
                 <div className="fixed inset-0 z-[9999] flex items-end sm:items-center justify-center bg-black/60 backdrop-blur-sm p-4">
@@ -110,13 +190,39 @@ export default function FindRide() {
                             origin={previewRide.origin}
                             destination={previewRide.destination}
                         />
-                        <div className="bg-white px-5 pb-5 -mt-1 rounded-b-3xl">
+
+                        {/* Ride Summary Bar */}
+                        <div className="bg-white px-5 pt-4 pb-2 -mt-1 rounded-b-3xl border-x border-b border-gray-100">
+                            <div className="grid grid-cols-3 divide-x divide-gray-100 mb-4 text-center">
+                                <div className="pr-3">
+                                    <p className="text-[10px] text-gray-400 font-bold uppercase">Driver</p>
+                                    <p className="text-sm font-bold text-gray-800 truncate">{previewRide.driverName}</p>
+                                </div>
+                                <div className="px-3">
+                                    <p className="text-[10px] text-gray-400 font-bold uppercase">Price</p>
+                                    <p className="text-sm font-bold text-teal-600">₹{previewRide.price}</p>
+                                </div>
+                                <div className="pl-3">
+                                    <p className="text-[10px] text-gray-400 font-bold uppercase">Seats</p>
+                                    <p className="text-sm font-bold text-gray-800">{previewRide.seats} left</p>
+                                </div>
+                            </div>
                             <button
                                 onClick={handleConfirmBook}
                                 disabled={booking}
-                                className="w-full bg-[#008080] hover:bg-teal-700 disabled:opacity-60 text-white font-bold py-4 rounded-2xl shadow-lg transition-all active:scale-[0.98]"
+                                className="w-full bg-[#008080] hover:bg-teal-700 disabled:opacity-60 text-white font-bold py-4 rounded-2xl shadow-lg transition-all active:scale-[0.98] flex items-center justify-center space-x-2 mb-2"
                             >
-                                {booking ? 'Booking...' : 'Confirm & Book Ride'}
+                                {booking ? (
+                                    <>
+                                        <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                                        <span>Booking...</span>
+                                    </>
+                                ) : (
+                                    <>
+                                        <CheckCircle className="w-5 h-5" />
+                                        <span>Confirm &amp; Book Ride</span>
+                                    </>
+                                )}
                             </button>
                         </div>
                     </div>
@@ -173,6 +279,7 @@ export default function FindRide() {
                                                 start={ride.origin}
                                                 end={ride.destination}
                                                 rating={ride.rating || 5.0}
+                                                isBooked={currentUser && ride.passengers?.includes(currentUser.uid)}
                                                 onBook={() => handleOpenPreview(ride)}
                                             />
                                         </div>
