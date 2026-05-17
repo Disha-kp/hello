@@ -181,52 +181,54 @@ export default function FindRide() {
             <BookingToast toast={toast} />
 
             {/* ── Book Ride Map Popup ──────────────────────────────────── */}
+            {/* RouteMapModal renders its own fixed inset-0 z-[9999] overlay internally.
+                The confirm bar must sit at z-[10000] so it floats above the map overlay. */}
             {previewRide && (
-                <div className="fixed inset-0 z-[9999] flex items-end sm:items-center justify-center bg-black/60 backdrop-blur-sm p-4">
-                    <div className="w-full max-w-md flex flex-col">
-                        <RouteMapModal
-                            isOpen={!!previewRide}
-                            onClose={() => setPreviewRide(null)}
-                            origin={previewRide.origin}
-                            destination={previewRide.destination}
-                        />
+                <>
+                    <RouteMapModal
+                        isOpen={true}
+                        onClose={() => setPreviewRide(null)}
+                        origin={previewRide.origin}
+                        destination={previewRide.destination}
+                    />
 
-                        {/* Ride Summary Bar */}
-                        <div className="bg-white px-5 pt-4 pb-2 -mt-1 rounded-b-3xl border-x border-b border-gray-100">
-                            <div className="grid grid-cols-3 divide-x divide-gray-100 mb-4 text-center">
-                                <div className="pr-3">
-                                    <p className="text-[10px] text-gray-400 font-bold uppercase">Driver</p>
-                                    <p className="text-sm font-bold text-gray-800 truncate">{previewRide.driverName}</p>
-                                </div>
-                                <div className="px-3">
-                                    <p className="text-[10px] text-gray-400 font-bold uppercase">Price</p>
-                                    <p className="text-sm font-bold text-teal-600">₹{previewRide.price}</p>
-                                </div>
-                                <div className="pl-3">
-                                    <p className="text-[10px] text-gray-400 font-bold uppercase">Seats</p>
-                                    <p className="text-sm font-bold text-gray-800">{previewRide.seats} left</p>
-                                </div>
+                    {/* Confirm bar — fixed above the modal at z-[10000] */}
+                    <div className="fixed bottom-0 left-0 right-0 z-[10000] bg-white border-t border-gray-200 px-4 pt-3 pb-8 shadow-[0_-8px_30px_rgba(0,0,0,0.12)]">
+                        {/* Ride summary strip */}
+                        <div className="grid grid-cols-3 divide-x divide-gray-100 mb-3 text-center">
+                            <div className="pr-3">
+                                <p className="text-[10px] text-gray-400 font-bold uppercase">Driver</p>
+                                <p className="text-sm font-bold text-gray-800 truncate">{previewRide.driverName}</p>
                             </div>
-                            <button
-                                onClick={handleConfirmBook}
-                                disabled={booking}
-                                className="w-full bg-[#008080] hover:bg-teal-700 disabled:opacity-60 text-white font-bold py-4 rounded-2xl shadow-lg transition-all active:scale-[0.98] flex items-center justify-center space-x-2 mb-2"
-                            >
-                                {booking ? (
-                                    <>
-                                        <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                                        <span>Booking...</span>
-                                    </>
-                                ) : (
-                                    <>
-                                        <CheckCircle className="w-5 h-5" />
-                                        <span>Confirm &amp; Book Ride</span>
-                                    </>
-                                )}
-                            </button>
+                            <div className="px-3">
+                                <p className="text-[10px] text-gray-400 font-bold uppercase">Price</p>
+                                <p className="text-sm font-bold text-teal-600">₹{previewRide.price}</p>
+                            </div>
+                            <div className="pl-3">
+                                <p className="text-[10px] text-gray-400 font-bold uppercase">Seats left</p>
+                                <p className="text-sm font-bold text-gray-800">{previewRide.seats}</p>
+                            </div>
                         </div>
+
+                        <button
+                            onClick={handleConfirmBook}
+                            disabled={booking}
+                            className="w-full bg-[#008080] hover:bg-teal-700 disabled:opacity-60 text-white font-bold py-4 rounded-2xl shadow-lg transition-all active:scale-[0.98] flex items-center justify-center space-x-2"
+                        >
+                            {booking ? (
+                                <>
+                                    <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                                    <span>Booking...</span>
+                                </>
+                            ) : (
+                                <>
+                                    <CheckCircle className="w-5 h-5" />
+                                    <span>Confirm &amp; Book Ride</span>
+                                </>
+                            )}
+                        </button>
                     </div>
-                </div>
+                </>
             )}
 
             {/* Toggle */}
